@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     }
 
     const response = await axios.post<ChatResponse>(
-      'https://therapist-chatbot-1.onrender.com/chat',
+      'https://therapist-chatbot-1.onrender.com',
       {
         message: message.trim(),
         audio: true
