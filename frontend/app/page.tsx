@@ -44,7 +44,7 @@ export default function TherapistPage() {
   useEffect(() => {
     const checkBackend = async () => {
       try {
-        await axios.get('http://127.0.0.1:8000/ping');
+        await axios.get('https://therapist-chatbot-1.onrender.com/ping');
         setIsConnected(true);
         debugLog('Backend connected');
       } catch (error) {
@@ -67,7 +67,7 @@ export default function TherapistPage() {
         return;
       }
 
-      const response = await axios.post<{ client_id: string; model: ModelType }>('http://127.0.0.1:8000/start', {
+      const response = await axios.post<{ client_id: string; model: ModelType }>('https://therapist-chatbot-1.onrender.com/start', {
         model: currentModel, // Ensure this reflects the selected model
       });
       setClientId(response.data.client_id);
@@ -81,9 +81,6 @@ export default function TherapistPage() {
         analyser.current.fftSize = 256;
       }
 
-      // Start speech recognition
-      startSpeechRecognition();
-
       debugLog('Conversation started with model:', response.data.model);
     } catch (error) {
       console.error('Failed to start conversation:', error);
@@ -96,7 +93,7 @@ export default function TherapistPage() {
     if (!isConversationActive || !clientId) return;
 
     try {
-      await axios.delete(`http://127.0.0.1:8000/end/${clientId}`);
+      await axios.delete(`https://therapist-chatbot-1.onrender.com/end/${clientId}`);
 
       if (window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
@@ -136,7 +133,7 @@ export default function TherapistPage() {
     if (!clientId || !isConversationActive) return;
 
     try {
-      const response = await axios.post<{ response: string; model: ModelType }>('http://127.0.0.1:8000/message', {
+      const response = await axios.post<{ response: string; model: ModelType }>('https://therapist-chatbot-1.onrender.com/message', {
         client_id: clientId,
         message: message,
         // Removed 'model' parameter
@@ -150,52 +147,34 @@ export default function TherapistPage() {
 
       // Handle speech synthesis
       if ('speechSynthesis' in window) {
-        // Cancel any ongoing speech before starting a new one
-        if (window.speechSynthesis.speaking) {
-          window.speechSynthesis.cancel();
-          setIsAISpeaking(false);
-          debugLog('Previous AI speech canceled before starting new speech');
-        }
-
         const utterance = new SpeechSynthesisUtterance(response.data.response);
         currentUtterance.current = utterance;
 
-        utterance.onstart = () => {
-          setIsAISpeaking(true);
-          debugLog('AI speech started');
-        };
+        utterance.onstart = () => setIsAISpeaking(true);
         utterance.onend = () => {
           setIsAISpeaking(false);
           currentUtterance.current = null;
-          debugLog('AI speech ended');
         };
         utterance.onerror = () => {
           setIsAISpeaking(false);
           currentUtterance.current = null;
-          debugLog('AI speech error');
         };
 
         window.speechSynthesis.speak(utterance);
-        debugLog('AI speech synthesis initiated');
       }
     } catch (error) {
       console.error('Failed to send message:', error);
-      debugLog('Failed to send message:', error);
       alert('Failed to send message. Please try again.');
     }
   };
 
-  // Initialize and start speech recognition
-  const startSpeechRecognition = () => {
-    if (recognitionRef.current) {
-      debugLog('Speech recognition already initialized');
-      return;
-    }
+  // Speech Recognition Setup
+  useEffect(() => {
+    if (!isConversationActive) return;
 
     const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognitionAPI) {
       console.error('Speech recognition not supported');
-      debugLog('Speech recognition not supported in this browser.');
       return;
     }
 
@@ -204,85 +183,46 @@ export default function TherapistPage() {
     recognition.interimResults = true;
     recognition.lang = 'en-US';
 
-    recognition.onstart = () => {
-      console.log('Speech recognition started.');
-      debugLog('Speech recognition started.');
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      const transcript = Array.from(event.results)
+        .map((result) => result[0].transcript)
+        .join('')
+        .trim();
+
+      if (transcript && isConversationActive) {
+        setTranscript(transcript);
+
+        if (window.speechSynthesis.speaking) {
+          window.speechSynthesis.cancel();
+          setIsAISpeaking(false);
+        }
+
+        if (event.results[event.results.length - 1].isFinal) {
+          sendMessage(transcript);
+          setTranscript('');
+        }
+      }
     };
 
-    // Cancel AI speech when user starts speaking
-    recognition.onspeechstart = () => {
+    recognition.onaudiostart = () => {
       if (window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
         setIsAISpeaking(false);
-        debugLog('AI speech canceled due to user speech start');
-      }
-    };
-
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      let finalTranscript = '';
-      let interimTranscript = '';
-
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        const transcriptSegment = event.results[i][0].transcript.trim();
-        if (event.results[i].isFinal) {
-          finalTranscript += transcriptSegment + ' ';
-        } else {
-          interimTranscript += transcriptSegment;
-        }
-      }
-
-      if (finalTranscript) {
-        sendMessage(finalTranscript.trim());
-        setTranscript('');
-      } else {
-        setTranscript(interimTranscript);
       }
     };
 
     recognition.onend = () => {
-      debugLog('Speech recognition ended');
       if (isConversationActive && recognitionRef.current) {
         recognition.start();
-        debugLog('Speech recognition restarted after ending');
       }
-    };
-
-    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      console.error('Speech recognition error:', event.error, event.message || 'No message provided');
-      console.dir(event); // Inspect the full event object
-
-      debugLog('Speech recognition encountered an error:', {
-        error: event.error,
-        message: event.message || 'No message provided',
-      });
-
-      // Attempt to restart recognition after a short delay
-      setTimeout(() => {
-        if (isConversationActive && recognitionRef.current) {
-          recognitionRef.current.start();
-          debugLog('Speech recognition restarted after error');
-        }
-      }, 1000);
     };
 
     recognition.start();
     recognitionRef.current = recognition;
-    debugLog('Speech recognition initialized and started');
-  };
-
-  // Speech Recognition Setup
-  useEffect(() => {
-    if (!isConversationActive) return;
-
-    // Initialize speech recognition
-    startSpeechRecognition();
 
     return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-        recognitionRef.current = null;
-        debugLog('Speech recognition stopped from useEffect cleanup');
-      }
+      recognition.stop();
+      recognitionRef.current = null;
     };
   }, [isConversationActive]);
 
