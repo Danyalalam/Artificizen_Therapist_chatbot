@@ -81,6 +81,9 @@ export default function TherapistPage() {
         analyser.current.fftSize = 256;
       }
 
+      // Start speech recognition
+      startSpeechRecognition();
+
       debugLog('Conversation started with model:', response.data.model);
     } catch (error) {
       console.error('Failed to start conversation:', error);
@@ -147,34 +150,52 @@ export default function TherapistPage() {
 
       // Handle speech synthesis
       if ('speechSynthesis' in window) {
+        // Cancel any ongoing speech before starting a new one
+        if (window.speechSynthesis.speaking) {
+          window.speechSynthesis.cancel();
+          setIsAISpeaking(false);
+          debugLog('Previous AI speech canceled before starting new speech');
+        }
+
         const utterance = new SpeechSynthesisUtterance(response.data.response);
         currentUtterance.current = utterance;
 
-        utterance.onstart = () => setIsAISpeaking(true);
+        utterance.onstart = () => {
+          setIsAISpeaking(true);
+          debugLog('AI speech started');
+        };
         utterance.onend = () => {
           setIsAISpeaking(false);
           currentUtterance.current = null;
+          debugLog('AI speech ended');
         };
         utterance.onerror = () => {
           setIsAISpeaking(false);
           currentUtterance.current = null;
+          debugLog('AI speech error');
         };
 
         window.speechSynthesis.speak(utterance);
+        debugLog('AI speech synthesis initiated');
       }
     } catch (error) {
       console.error('Failed to send message:', error);
+      debugLog('Failed to send message:', error);
       alert('Failed to send message. Please try again.');
     }
   };
 
-  // Speech Recognition Setup
-  useEffect(() => {
-    if (!isConversationActive) return;
+  // Initialize and start speech recognition
+  const startSpeechRecognition = () => {
+    if (recognitionRef.current) {
+      debugLog('Speech recognition already initialized');
+      return;
+    }
 
     const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognitionAPI) {
       console.error('Speech recognition not supported');
+      debugLog('Speech recognition not supported in this browser.');
       return;
     }
 
@@ -183,46 +204,85 @@ export default function TherapistPage() {
     recognition.interimResults = true;
     recognition.lang = 'en-US';
 
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      const transcript = Array.from(event.results)
-        .map((result) => result[0].transcript)
-        .join('')
-        .trim();
-
-      if (transcript && isConversationActive) {
-        setTranscript(transcript);
-
-        if (window.speechSynthesis.speaking) {
-          window.speechSynthesis.cancel();
-          setIsAISpeaking(false);
-        }
-
-        if (event.results[event.results.length - 1].isFinal) {
-          sendMessage(transcript);
-          setTranscript('');
-        }
-      }
+    recognition.onstart = () => {
+      console.log('Speech recognition started.');
+      debugLog('Speech recognition started.');
     };
 
-    recognition.onaudiostart = () => {
+    // Cancel AI speech when user starts speaking
+    recognition.onspeechstart = () => {
       if (window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
         setIsAISpeaking(false);
+        debugLog('AI speech canceled due to user speech start');
+      }
+    };
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      let finalTranscript = '';
+      let interimTranscript = '';
+
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        const transcriptSegment = event.results[i][0].transcript.trim();
+        if (event.results[i].isFinal) {
+          finalTranscript += transcriptSegment + ' ';
+        } else {
+          interimTranscript += transcriptSegment;
+        }
+      }
+
+      if (finalTranscript) {
+        sendMessage(finalTranscript.trim());
+        setTranscript('');
+      } else {
+        setTranscript(interimTranscript);
       }
     };
 
     recognition.onend = () => {
+      debugLog('Speech recognition ended');
       if (isConversationActive && recognitionRef.current) {
         recognition.start();
+        debugLog('Speech recognition restarted after ending');
       }
+    };
+
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      console.error('Speech recognition error:', event.error, event.message || 'No message provided');
+      console.dir(event); // Inspect the full event object
+
+      debugLog('Speech recognition encountered an error:', {
+        error: event.error,
+        message: event.message || 'No message provided',
+      });
+
+      // Attempt to restart recognition after a short delay
+      setTimeout(() => {
+        if (isConversationActive && recognitionRef.current) {
+          recognitionRef.current.start();
+          debugLog('Speech recognition restarted after error');
+        }
+      }, 1000);
     };
 
     recognition.start();
     recognitionRef.current = recognition;
+    debugLog('Speech recognition initialized and started');
+  };
+
+  // Speech Recognition Setup
+  useEffect(() => {
+    if (!isConversationActive) return;
+
+    // Initialize speech recognition
+    startSpeechRecognition();
 
     return () => {
-      recognition.stop();
-      recognitionRef.current = null;
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+        recognitionRef.current = null;
+        debugLog('Speech recognition stopped from useEffect cleanup');
+      }
     };
   }, [isConversationActive]);
 
