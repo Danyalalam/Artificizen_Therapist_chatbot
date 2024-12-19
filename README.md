@@ -21,7 +21,7 @@ Open your terminal and run the following commands:
 ```bash
 git clone https://github.com/Danyalalam/Artificizen_Therapist_chatbot.git
 cd Therapist_chatbot
-'''bash
+```bash
 
 
 ### 2. Create a Virtual Environment
