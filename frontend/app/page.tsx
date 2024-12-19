@@ -44,7 +44,7 @@ export default function TherapistPage() {
   useEffect(() => {
     const checkBackend = async () => {
       try {
-        await axios.get('https://therapist-chatbot-1.onrender.com/ping');
+        await axios.get('/ping');
         setIsConnected(true);
         debugLog('Backend connected');
       } catch (error) {
@@ -67,7 +67,7 @@ export default function TherapistPage() {
         return;
       }
 
-      const response = await axios.post<{ client_id: string; model: ModelType }>('https://therapist-chatbot-1.onrender.com/start', {
+      const response = await axios.post<{ client_id: string; model: ModelType }>('/start', {
         model: currentModel, // Ensure this reflects the selected model
       });
       setClientId(response.data.client_id);
@@ -93,7 +93,7 @@ export default function TherapistPage() {
     if (!isConversationActive || !clientId) return;
 
     try {
-      await axios.delete(`https://therapist-chatbot-1.onrender.com/end/${clientId}`);
+      await axios.delete(`/end/${clientId}`);
 
       if (window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
@@ -133,7 +133,7 @@ export default function TherapistPage() {
     if (!clientId || !isConversationActive) return;
 
     try {
-      const response = await axios.post<{ response: string; model: ModelType }>('https://therapist-chatbot-1.onrender.com/message', {
+      const response = await axios.post<{ response: string; model: ModelType }>('/message', {
         client_id: clientId,
         message: message,
         // Removed 'model' parameter
