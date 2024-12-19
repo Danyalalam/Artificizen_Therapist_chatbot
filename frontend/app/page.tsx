@@ -133,7 +133,7 @@ export default function TherapistPage() {
     if (!clientId || !isConversationActive) return;
 
     try {
-      const response = await axios.post<{ response: string; model: ModelType }>('https://therapist-chatbot-1.onrender.com/message', {
+      const response = await axios.post<{ response: string; model: ModelType }>('https://artificizen-therapist-chatbot-5qev.vercel.app/therapy-chat', {
         client_id: clientId,
         message: message,
         // Removed 'model' parameter

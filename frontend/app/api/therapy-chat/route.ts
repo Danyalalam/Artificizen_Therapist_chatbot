@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     }
 
     const response = await axios.post<ChatResponse>(
-      'https://therapist-chatbot-1.onrender.com', // Corrected endpoint
+      'https://therapist-chatbot-1.onrender.com/message', // Corrected endpoint
       {
         client_id: clientId, // Ensure backend expects 'client_id'
         message: message.trim(),
