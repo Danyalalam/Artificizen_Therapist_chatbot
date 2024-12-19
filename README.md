@@ -67,13 +67,37 @@ Follow these steps to start the chatbot server and interact with it via your web
 Run the following command to start the FastAPI server using uvicorn:
 
 ```bash
-uvicorn backend:app --reload --host 0.0.0.0 --port 5000
+uvicorn backend:app --reload --host 0.0.0.0 --port 8000
 ```
 
 - `--reload`: Enables auto-reloading on code changes.
 - `--host 0.0.0.0`: Makes the server accessible externally (optional for local development).
-- `--port 5000`: Specifies the port number.
+- `--port 8000`: Specifies the port number.
 
-### 2. Access the Chatbot
+## Frontend Setup
 
-Open your web browser and navigate to [http://localhost:5000](http://localhost:5000) to interact with the chatbot.
+### 1. Navigate to Frontend Directory
+
+```bash
+cd frontend
+```
+
+### 2. Install Dependencies
+
+Install the necessary Node.js packages using npm or yarn.
+
+Using npm:
+
+```bash
+npm install
+```
+
+
+### 3. Start the Frontend Development Server
+
+Using npm:
+
+```bash
+npm run dev
+```
+
