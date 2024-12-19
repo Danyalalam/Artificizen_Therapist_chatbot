@@ -20,8 +20,12 @@ load_dotenv()
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=[
+        "http://localhost:3000",  # Local development
+        "https://artificizen-therapist-chatbot.vercel.app",  # Vercel production
+        "https://artificizen-therapist-chat-git-80c213-danyals-projects-dcc16ae1.vercel.app"  # Vercel preview
+    ],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )

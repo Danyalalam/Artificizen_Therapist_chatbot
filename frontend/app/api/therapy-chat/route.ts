@@ -10,8 +10,7 @@ export async function POST(request: Request) {
   try {
     const formData = await request.formData();
     const message = formData.get('message');
-    const clientId = formData.get('clientId'); // Assuming you need clientId
-
+    
     if (!message || typeof message !== 'string') {
       return NextResponse.json(
         { error: "Valid message is required" },
@@ -19,18 +18,11 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!clientId || typeof clientId !== 'string') {
-      return NextResponse.json(
-        { error: "Valid clientId is required" },
-        { status: 400 }
-      );
-    }
-
     const response = await axios.post<ChatResponse>(
-      'https://therapist-chatbot-1.onrender.com', // Corrected endpoint
+      'https://therapist-chatbot-1.onrender.com',
       {
-        client_id: clientId, // Ensure backend expects 'client_id'
         message: message.trim(),
+        audio: true
       },
       {
         headers: {
